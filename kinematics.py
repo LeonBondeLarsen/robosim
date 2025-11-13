@@ -1,7 +1,7 @@
 import math
 
 class State(object):
-    def __init__(self, x=0.0, y=0.0, theta=0.0):
+    def __init__(self, x=0.0, y=0.0, theta=math.pi/2):
         self.x = x
         self.y = y
         self.theta = theta
