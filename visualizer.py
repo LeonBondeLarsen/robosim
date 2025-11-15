@@ -1,46 +1,61 @@
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 from robot import draw_robot
-from kinematics import Kinematics
+from kinematics import TankSteerKinematics, AckermanSteerKinematics
+from game_pad import JoystickSteeringReader
 import math
 
-# Constant declarations
-bg_path = "robot_track_simple_1024.png"
-dt = 0.01
+# Visualization settings
+bg_path = "robot_track_simple_1024.png" # path to background image
+dt = 0.01 # Time step
 map_width = 25.0
 map_height = 25.0
 
 # Initialize kinematics
-kinematics = Kinematics()
+kinematics = AckermanSteerKinematics()
 kinematics.state.x = 0.5
 kinematics.state.y = 0.1
-kinematics.state.theta = 0
+kinematics.state.theta = math.pi / 6.0
+velocity = 0.0
+steer_angle = 0.0
+
+joystick = JoystickSteeringReader(
+    js_index=0,
+    axis_throttle=1,  # left stick Y
+    axis_steer=0,     # left stick X
+    vmax=10.0,
+    steer_max_deg=40.0,
+    deadzone=0.10,
+    rate_hz=120
+)
+joystick.start()
 
 # Visualization setup
 plt.ion() # Turn on interactive mode
 bg = mpimg.imread(bg_path) # Load background image
 fig, ax = plt.subplots(figsize=(map_width, map_height)) # Create figure and axis
-ax.set_xlim(map_width - 5, map_width + 5)
-ax.set_ylim(map_height - 5, map_height + 5)
-ax.imshow(bg, extent=[0, map_width, 0, map_height]) # Display background image
-ax.axis("off") # Turn off axis
-fig.canvas.draw() # Draw the canvas
-background = fig.canvas.copy_from_bbox(ax.bbox) # Save background for easy redraw
-draw_robot(ax, kinematics.get_state(),25)
 
-# Timer callback for updating the robot state and visualization
-def on_timer(_=None):
-
-    # Update kinematics
-    kinematics.update(10, 0, dt)
-
-    # Redraw
+def clear_visualization():
     ax.clear()
     ax.imshow(bg, extent=[0, map_width, 0, map_height])
     ax.set_xlim(- 5, map_width + 5)
     ax.set_ylim(- 5, map_height + 5)
-    #ax.axis("off")
-    draw_robot(ax, kinematics.get_state(),25)
+    ax.axis("off")
+
+clear_visualization()
+fig.canvas.draw() # Draw the canvas
+draw_robot(ax, kinematics.get_state(),steer_angle)
+
+# Timer callback for updating the robot state and visualization
+def on_timer(_=None):
+    velocity, steer_angle = joystick.get_steering()
+
+    # Update kinematics
+    kinematics.update(velocity, steer_angle, dt)
+
+    # Redraw
+    clear_visualization()
+    draw_robot(ax, kinematics.get_state(), steer_angle)
 
 # Set up and start the timer
 timer = fig.canvas.new_timer(interval=dt * 1000)
