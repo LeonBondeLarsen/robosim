@@ -3,7 +3,10 @@ import matplotlib.image as mpimg
 from robot import draw_robot
 from kinematics import TankSteerKinematics, AckermanSteerKinematics
 from game_pad import JoystickSteeringReader
+from sensor import LightSensor
 import math
+
+import sensor
 
 # Visualization settings
 bg_path = "robot_track_simple_1024.png" # path to background image
@@ -30,6 +33,9 @@ joystick = JoystickSteeringReader(
 )
 joystick.start()
 
+left_sensor = LightSensor(geometry=(0, 0.8, 0.5), map_path=bg_path, map_size=(map_width, map_height))
+right_sensor = LightSensor(geometry=(0, -0.8, 0.5), map_path=bg_path, map_size=(map_width, map_height))
+
 # Visualization setup
 plt.ion() # Turn on interactive mode
 bg = mpimg.imread(bg_path) # Load background image
@@ -53,9 +59,16 @@ def on_timer(_=None):
     # Update kinematics
     kinematics.update(velocity, steer_angle, dt)
 
+    # Get sensor reading
+    left_sensor_value = left_sensor.get_sensor_value(kinematics.get_state())
+    right_sensor_value = right_sensor.get_sensor_value(kinematics.get_state())
+    print(f"Sensors: left: {left_sensor_value:.2f}, right: {right_sensor_value:.2f}")
+
     # Redraw
     clear_visualization()
     draw_robot(ax, kinematics.get_state(), steer_angle)
+    left_sensor.draw_sensor(ax, kinematics.get_state())
+    right_sensor.draw_sensor(ax, kinematics.get_state())
 
 # Set up and start the timer
 timer = fig.canvas.new_timer(interval=dt * 1000)
