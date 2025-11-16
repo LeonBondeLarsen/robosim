@@ -4,6 +4,7 @@ from robot import draw_robot
 from kinematics import TankSteerKinematics, AckermanSteerKinematics
 from game_pad import JoystickSteeringReader
 from sensor import LightSensor
+from control import CircleController
 import math
 
 import sensor
@@ -13,6 +14,7 @@ bg_path = "robot_track_simple_1024.png" # path to background image
 dt = 0.01 # Time step
 map_width = 25.0
 map_height = 25.0
+state = 'manual'  # 'manual' or 'auto'
 
 # Initialize kinematics
 kinematics = AckermanSteerKinematics()
@@ -31,10 +33,24 @@ joystick = JoystickSteeringReader(
     deadzone=0.10,
     rate_hz=120
 )
+def button_callback(button):
+    global state
+    if button == 0:  # Assuming button 0 toggles mode
+        if state == 'auto':
+            state = 'manual'
+            print("Switched to MANUAL mode")
+        else:
+            state = 'auto'
+            print("Switched to AUTO mode")
+joystick.button_callback = button_callback
 joystick.start()
 
+# Initialize sensors
 left_sensor = LightSensor(geometry=(0, 0.8, 0.5), map_path=bg_path, map_size=(map_width, map_height))
 right_sensor = LightSensor(geometry=(0, -0.8, 0.5), map_path=bg_path, map_size=(map_width, map_height))
+
+# Initialize controllers
+controller = CircleController(velocity=10.0, steering_angle=30)
 
 # Visualization setup
 plt.ion() # Turn on interactive mode
@@ -54,7 +70,10 @@ draw_robot(ax, kinematics.get_state(),steer_angle)
 
 # Timer callback for updating the robot state and visualization
 def on_timer(_=None):
-    velocity, steer_angle = joystick.get_steering()
+    if state == 'auto':
+        velocity, steer_angle = controller.get_control()
+    else:
+        velocity, steer_angle = joystick.get_steering()
 
     # Update kinematics
     kinematics.update(velocity, steer_angle, dt)
@@ -62,7 +81,7 @@ def on_timer(_=None):
     # Get sensor reading
     left_sensor_value = left_sensor.get_sensor_value(kinematics.get_state())
     right_sensor_value = right_sensor.get_sensor_value(kinematics.get_state())
-    print(f"Sensors: left: {left_sensor_value:.2f}, right: {right_sensor_value:.2f}")
+    #print(f"Sensors: left: {left_sensor_value:.2f}, right: {right_sensor_value:.2f}")
 
     # Redraw
     clear_visualization()

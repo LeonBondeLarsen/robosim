@@ -19,6 +19,7 @@ class JoystickSteeringReader:
         self.steer_max_deg = float(steer_max_deg)
         self.deadzone = float(deadzone)
         self.period = 1.0 / float(rate_hz)
+        self.button_callback = None 
 
         self._thread = None
         self._running = False
@@ -69,9 +70,9 @@ class JoystickSteeringReader:
         while self._running:
             # Pump events so pygame updates its internal state
             for event in pygame.event.get():
-                # You can handle button presses here if needed
-                # e.g., set self._running = False on some button
-                pass
+                if event.type == pygame.JOYBUTTONUP:
+                    if self.button_callback is not None:
+                        self.button_callback(event.button)
 
             # Read axes
             try:
