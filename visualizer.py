@@ -1,13 +1,11 @@
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 from robot import draw_robot
-from kinematics import TankSteerKinematics, AckermanSteerKinematics
+from kinematics import AckermanSteerKinematics
 from game_pad import JoystickSteeringReader
 from sensor import LightSensor
 from control import CircleController
 import math
-
-import sensor
 
 # Visualization settings
 bg_path = "robot_track_simple_1024.png" # path to background image
@@ -24,15 +22,17 @@ kinematics.state.theta = math.pi / 6.0
 velocity = 0.0
 steer_angle = 0.0
 
+# Initialize joystick reader
 joystick = JoystickSteeringReader(
     js_index=0,
     axis_throttle=1,  # left stick Y
     axis_steer=0,     # left stick X
-    vmax=10.0,
-    steer_max_deg=40.0,
+    vmax=15.0,
+    steer_max_deg=60.0,
     deadzone=0.10,
     rate_hz=120
 )
+
 def button_callback(button):
     global state
     if button == 0:  # Assuming button 0 toggles mode
@@ -42,12 +42,20 @@ def button_callback(button):
         else:
             state = 'auto'
             print("Switched to AUTO mode")
+
 joystick.button_callback = button_callback
 joystick.start()
 
 # Initialize sensors
-left_sensor = LightSensor(geometry=(0, 0.8, 0.5), map_path=bg_path, map_size=(map_width, map_height))
-right_sensor = LightSensor(geometry=(0, -0.8, 0.5), map_path=bg_path, map_size=(map_width, map_height))
+sensors = []
+sensors.append( LightSensor(geometry=(0.5, 1.75, 0.5), map_path=bg_path, map_size=(map_width, map_height)) )
+sensors.append( LightSensor(geometry=(0.5, 1.25, 0.5), map_path=bg_path, map_size=(map_width, map_height)) )
+sensors.append( LightSensor(geometry=(0.5, 0.75, 0.5), map_path=bg_path, map_size=(map_width, map_height)) )
+sensors.append( LightSensor(geometry=(0.5, 0.25, 0.5), map_path=bg_path, map_size=(map_width, map_height)) )
+sensors.append( LightSensor(geometry=(0.5, -0.25, 0.5), map_path=bg_path, map_size=(map_width, map_height)) )
+sensors.append( LightSensor(geometry=(0.5, -0.75, 0.5), map_path=bg_path, map_size=(map_width, map_height)) )
+sensors.append( LightSensor(geometry=(0.5, -1.25, 0.5), map_path=bg_path, map_size=(map_width, map_height)) )
+sensors.append( LightSensor(geometry=(0.5, -1.75, 0.5), map_path=bg_path, map_size=(map_width, map_height)) )
 
 # Initialize controllers
 controller = CircleController(velocity=10.0, steering_angle=30)
@@ -70,30 +78,33 @@ draw_robot(ax, kinematics.get_state(),steer_angle)
 
 # Timer callback for updating the robot state and visualization
 def on_timer(_=None):
+    # Get sensor readings
+    sensor_values = []
+    for sensor_id in range(len(sensors)):
+        sensor_values.append( sensors[sensor_id].get_sensor_value(kinematics.get_state()) )
+    print([f"{x:.2f}" for x in sensor_values])
+
+    # Get control inputs
     if state == 'auto':
-        velocity, steer_angle = controller.get_control()
+        velocity, steer_angle = controller.get_control(sensor_values)
     else:
         velocity, steer_angle = joystick.get_steering()
 
     # Update kinematics
     kinematics.update(velocity, steer_angle, dt)
 
-    # Get sensor reading
-    left_sensor_value = left_sensor.get_sensor_value(kinematics.get_state())
-    right_sensor_value = right_sensor.get_sensor_value(kinematics.get_state())
-    #print(f"Sensors: left: {left_sensor_value:.2f}, right: {right_sensor_value:.2f}")
-
-    # Redraw
+    # Redraw the visualization
     clear_visualization()
     draw_robot(ax, kinematics.get_state(), steer_angle)
-    left_sensor.draw_sensor(ax, kinematics.get_state())
-    right_sensor.draw_sensor(ax, kinematics.get_state())
+    for sensor_id in range(len(sensors)):
+        sensors[sensor_id].draw_sensor(ax, kinematics.get_state())
 
 # Set up and start the timer
 timer = fig.canvas.new_timer(interval=dt * 1000)
 timer.add_callback(on_timer)
 timer.start()
 
+# Show the plot
 try:
     plt.show(block=True)
 finally:

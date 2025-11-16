@@ -4,6 +4,9 @@ import math
 import pygame
 
 class JoystickSteeringReader:
+    """
+    Reads joystick input and maps it to linear velocity and steering angle.
+    Runs in a separate thread, polling at a specified rate."""
     def __init__(self,
                  js_index=0,
                  axis_throttle=1,     # left stick Y on most gamepads
